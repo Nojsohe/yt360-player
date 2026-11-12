@@ -55,10 +55,14 @@
   body.editing .blk-sel { outline: 2px solid #38bdf8 !important; }
   #editbar { display: none; }
   body.editing #editbar { display: flex; }
+  #editshield { position: absolute; inset: 0; z-index: 6; display: none; touch-action: none; }
+  body.editing #editshield { display: block; }
+  .buildtag { font-size: 11px; color: #64748b; margin: -6px 0 8px; }
 </style>
 </head>
 <body>
 <h1>360°動画 × FITデータ プレイヤー</h1>
+<div class="buildtag">build 20261112-3</div>
 
 <div class="row">
   <input type="text" id="yturl" placeholder="YouTubeのURL（または動画ID）を貼り付け" value="https://youtu.be/smwZzaFzRQs">
@@ -86,6 +90,7 @@
     <div class="chip" id="chip-pow"><div class="lab">パワー</div><div class="val"><span id="c-pow">--</span> <small>W</small></div></div>
     <div class="chip" id="chip-time"><div class="lab">経過</div><div class="val"><span id="c-time">--:--</span></div></div>
   </div>
+  <div id="editshield"></div>
 </div>
 
 <div class="ctl">
@@ -651,6 +656,25 @@ Object.keys(blocks).forEach(function (k) {
       }, 450);
     }
   });
+});
+var shield = document.getElementById('editshield');
+shield.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+shield.addEventListener('pointerdown', function (e) {
+  if (!document.body.classList.contains('editing')) return;
+  var s = stageEl().getBoundingClientRect();
+  var order = ['chip-time', 'chip-pow', 'chip-cad', 'chip-hr', 'chip-grade', 'chip-alt', 'chip-dist', 'map', 'speed'];
+  for (var i = 0; i < order.length; i++) {
+    var el = blocks[order[i]];
+    if (!el || el.style.display === 'none') continue;
+    var r = el.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+      var p = blkPos(el);
+      drag = { key: order[i], pid: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: p.x, baseY: p.y, sw: s.width, sh: s.height, active: true };
+      selectBlk(order[i]);
+      e.preventDefault();
+      break;
+    }
+  }
 });
 document.addEventListener('pointermove', function (e) {
   if (!drag || drag.pid !== e.pointerId) return;
