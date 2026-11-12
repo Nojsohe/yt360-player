@@ -29,18 +29,29 @@
   #speedbox .unit { font-size: clamp(11px, 2.6vw, 15px); color: #cbd5e1; }
   #mapbox { position: absolute; top: 3%; right: 3%; width: 32%; max-width: 260px; aspect-ratio: 4/3; background: rgba(8,11,17,.55); border: 1px solid rgba(255,255,255,.25); border-radius: 8px; }
   #map { width: 100%; height: 100%; display: block; }
-  #chips { position: absolute; right: 3%; top: 48%; width: 32%; max-width: 260px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-  .chip { background: rgba(8,11,17,.62); border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 3px 6px; min-width: 0; }
-  .chip .lab { font-size: 9px; color: #9fb0c3; }
-  .chip .val { font-size: clamp(12px, 3.4vw, 16px); font-weight: 600; white-space: nowrap; }
+  .chip { background: rgba(8,11,17,.62); border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 2px 5px; width: 15.5%; max-width: 132px; box-sizing: border-box; }
+  .chip .lab { font-size: 8px; color: #9fb0c3; }
+  .chip .val { font-size: clamp(11px, 3vw, 15px); font-weight: 600; white-space: nowrap; }
   .chip .val small { font-size: .62em; color: #9fb0c3; font-weight: 400; }
+  #chip-dist { left: 66%; top: 47.5%; }
+  #chip-alt { left: 82.8%; top: 47.5%; }
+  #chip-grade { left: 66%; top: 60%; }
+  #chip-hr { left: 82.8%; top: 60%; }
+  #chip-cad { left: 66%; top: 72.5%; }
+  #chip-pow { left: 82.8%; top: 72.5%; }
+  #chip-time { left: 66%; top: 85%; }
+  #fieldpanel { display: none; background: #11151d; border: 1px solid #26303f; border-radius: 10px; padding: 8px 12px; margin-top: 10px; }
+  #fieldpanel.open { display: block; }
+  .frow { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; cursor: pointer; }
+  .frow input { width: 18px; height: 18px; }
+  .frow .favail { color: #9fb0c3; font-size: 12px; margin-left: auto; }
   .ctl { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
   .ctl .lab { font-size: 12px; color: #94a3b8; }
   #status { font-size: 12px; color: #7dd3fc; margin-top: 8px; min-height: 16px; }
   .help { font-size: 12px; color: #94a3b8; line-height: 1.7; margin-top: 12px; }
   .help b { color: #cbd5e1; }
-  #speedbox, #mapbox, #chips { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  body.editing #speedbox, body.editing #mapbox, body.editing #chips { outline: 2px dashed rgba(125,211,252,.85); outline-offset: 2px; }
+  #speedbox, #mapbox, .chip { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body.editing #speedbox, body.editing #mapbox, body.editing .chip { outline: 2px dashed rgba(125,211,252,.85); outline-offset: 2px; }
   body.editing .blk-sel { outline: 2px solid #38bdf8 !important; }
   #editbar { display: none; }
   body.editing #editbar { display: flex; }
@@ -67,15 +78,13 @@
       <div class="unit">km/h</div>
     </div>
     <div id="mapbox"><canvas id="map"></canvas></div>
-    <div id="chips">
-      <div class="chip"><div class="lab">距離</div><div class="val"><span id="c-dist">--</span> <small>km</small></div></div>
-      <div class="chip"><div class="lab">標高</div><div class="val"><span id="c-alt">--</span> <small>m</small></div></div>
-      <div class="chip"><div class="lab">スロープ</div><div class="val"><span id="c-grade">--</span> <small>%</small></div></div>
-      <div class="chip"><div class="lab">心拍</div><div class="val"><span id="c-hr">--</span> <small>bpm</small></div></div>
-      <div class="chip"><div class="lab">ケイデンス</div><div class="val"><span id="c-cad">--</span> <small>rpm</small></div></div>
-      <div class="chip"><div class="lab">パワー</div><div class="val"><span id="c-pow">--</span> <small>W</small></div></div>
-      <div class="chip"><div class="lab">経過</div><div class="val"><span id="c-time">--:--</span></div></div>
-    </div>
+    <div class="chip" id="chip-dist"><div class="lab">距離</div><div class="val"><span id="c-dist">--</span> <small>km</small></div></div>
+    <div class="chip" id="chip-alt"><div class="lab">標高</div><div class="val"><span id="c-alt">--</span> <small>m</small></div></div>
+    <div class="chip" id="chip-grade"><div class="lab">スロープ</div><div class="val"><span id="c-grade">--</span> <small>%</small></div></div>
+    <div class="chip" id="chip-hr"><div class="lab">心拍</div><div class="val"><span id="c-hr">--</span> <small>bpm</small></div></div>
+    <div class="chip" id="chip-cad"><div class="lab">ケイデンス</div><div class="val"><span id="c-cad">--</span> <small>rpm</small></div></div>
+    <div class="chip" id="chip-pow"><div class="lab">パワー</div><div class="val"><span id="c-pow">--</span> <small>W</small></div></div>
+    <div class="chip" id="chip-time"><div class="lab">経過</div><div class="val"><span id="c-time">--:--</span></div></div>
   </div>
 </div>
 
@@ -104,12 +113,18 @@
   <button class="sub" id="layoutreset">配置リセット</button>
   <button id="editdone">完了</button>
 </div>
+<div class="ctl">
+  <button class="sub" id="fieldbtn">表示項目を設定</button>
+  <span class="lab">FITに入っているデータを見て、表示する項目を個別に選べます（設定は保存されます）</span>
+</div>
+<div id="fieldpanel"></div>
 <div id="status"></div>
 
 <div class="help">
   <b>使い方</b>：① YouTubeの360°動画URLを読み込む → ② 対応するFITファイルを選ぶ → ③ 再生。映像の中でドラッグ／スワイプすると視点が動き、データ表示は画面に固定されたまま連動します。<br>
   <b>同期の合わせ方</b>：動画の開始がライド開始とズレている場合、オフセットに「動画0秒の時点でFIT開始から何秒経っていたか」を入れます（例：走り始めて60秒後に録画開始した動画なら 60）。<br>
-  <b>レイアウト変更</b>：速度・MAP・データ表示は長押しすると編集モードになり、ドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
+  <b>レイアウト変更</b>：速度・MAP・各データ表示は1つずつ長押しすると編集モードになり、ドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
+  <b>表示項目</b>：「表示項目を設定」から、速度・距離・標高・スロープ・心拍・ケイデンス・パワー・経過時間・MAPを個別にON/OFFできます。読み込んだFITに無いデータの項目は自動で隠れ、パネルに「このFITにデータなし」と出ます。設定は保存されます。<br>
   <b>視点の動かし方</b>：スマホのブラウザ埋め込みではYouTube標準のドラッグ視点移動が効かないため、「視点ドラッグ: ON」にすると映像の上をドラッグして視点を動かせます（公式APIで視点を制御）。ONの間はYouTubeのシークバーが使えないので、シークしたい時はOFFに戻してください。対応機種では、OFFの状態でスマホ本体を傾けても視点が動きます。<br>
   <b>注意</b>：YouTube側で「埋め込み」が無効な動画は再生できません（YouTube Studioの動画設定で埋め込み許可が必要）。このページは動画もFITも外部送信しません（FITは端末内でのみ読み取ります）。
 </div>
@@ -299,6 +314,10 @@ document.getElementById('fitfile').addEventListener('change', function (ev) {
       for (var j = records.length - 1; j >= 0; j--) { if (records[j].dist != null) { distKm = (records[j].dist / 1000).toFixed(2); break; } }
       document.getElementById('fitinfo').textContent =
         file.name + '：' + records.length + '点 / ' + distKm + ' km / ' + fmtTime(dur);
+      fitLoaded = true;
+      computeAvail();
+      refreshFieldPanel();
+      applyVisibility();
       setStatus('FITを読み込みました。動画を再生すると連動します');
       drawMap(0);
     } catch (e) {
@@ -438,13 +457,97 @@ var panOn = false, yaw = 0, pitch = 0, fov = 100;
 var panLayer = document.getElementById('panlayer');
 
 // ---- レイアウト編集（長押しで移動・サイズ変更、localStorageに保存） ----
-var LKEY = 'yt360hud-v1';
+var LKEY = 'yt360hud-v2';
 var blocks = {
   speed: document.getElementById('speedbox'),
   map: document.getElementById('mapbox'),
-  chips: document.getElementById('chips')
+  'chip-dist': document.getElementById('chip-dist'),
+  'chip-alt': document.getElementById('chip-alt'),
+  'chip-grade': document.getElementById('chip-grade'),
+  'chip-hr': document.getElementById('chip-hr'),
+  'chip-cad': document.getElementById('chip-cad'),
+  'chip-pow': document.getElementById('chip-pow'),
+  'chip-time': document.getElementById('chip-time')
 };
 var selKey = null;
+
+// ---- 表示項目の個別設定（FITにあるデータを見て選べる、設定は保存） ----
+var FKEY = 'yt360hud-fields-v1';
+var FIELDS = [
+  { f: 'speed', label: '速度', blk: 'speed' },
+  { f: 'dist', label: '距離', blk: 'chip-dist' },
+  { f: 'alt', label: '標高', blk: 'chip-alt' },
+  { f: 'grade', label: 'スロープ', blk: 'chip-grade' },
+  { f: 'hr', label: '心拍', blk: 'chip-hr' },
+  { f: 'cad', label: 'ケイデンス', blk: 'chip-cad' },
+  { f: 'pow', label: 'パワー', blk: 'chip-pow' },
+  { f: 'time', label: '経過時間', blk: 'chip-time' },
+  { f: 'map', label: 'ルートマップ', blk: 'map' }
+];
+var avail = { speed: true, dist: true, alt: true, grade: true, hr: true, cad: true, pow: true, time: true, map: true };
+var fitLoaded = false;
+var fprefs = {};
+try { fprefs = JSON.parse(localStorage.getItem(FKEY) || '{}'); } catch (e) { fprefs = {}; }
+FIELDS.forEach(function (x) { if (fprefs[x.f] === undefined) fprefs[x.f] = true; });
+
+function applyVisibility() {
+  FIELDS.forEach(function (x) {
+    var el = blocks[x.blk];
+    if (!el) return;
+    el.style.display = (fprefs[x.f] && avail[x.f]) ? '' : 'none';
+  });
+}
+function computeAvail() {
+  var a = { speed: false, dist: false, alt: false, hr: false, cad: false, pow: false, gps: 0 };
+  for (var i = 0; i < records.length; i++) {
+    var r = records[i];
+    if (r.spd != null) a.speed = true;
+    if (r.dist != null) a.dist = true;
+    if (r.alt != null) a.alt = true;
+    if (r.hr != null) a.hr = true;
+    if (r.cad != null) a.cad = true;
+    if (r.pow != null) a.pow = true;
+    if (r.lat != null && r.lon != null) a.gps++;
+  }
+  avail = { speed: a.speed, dist: a.dist, alt: a.alt, grade: (a.alt && a.dist), hr: a.hr, cad: a.cad, pow: a.pow, time: true, map: a.gps >= 2 };
+}
+function refreshFieldPanel() {
+  FIELDS.forEach(function (x) {
+    var s = document.getElementById('favail-' + x.f);
+    if (!s) return;
+    if (!fitLoaded) { s.textContent = 'FIT未読込'; return; }
+    s.textContent = avail[x.f] ? 'データあり' : 'このFITにデータなし';
+  });
+}
+function buildFieldPanel() {
+  var p = document.getElementById('fieldpanel');
+  p.innerHTML = '';
+  FIELDS.forEach(function (x) {
+    var row = document.createElement('label');
+    row.className = 'frow';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!fprefs[x.f];
+    cb.addEventListener('change', function () {
+      fprefs[x.f] = cb.checked;
+      try { localStorage.setItem(FKEY, JSON.stringify(fprefs)); } catch (e) {}
+      applyVisibility();
+    });
+    var nm = document.createElement('span');
+    nm.textContent = x.label;
+    var av = document.createElement('span');
+    av.className = 'favail';
+    av.id = 'favail-' + x.f;
+    row.appendChild(cb);
+    row.appendChild(nm);
+    row.appendChild(av);
+    p.appendChild(row);
+  });
+  refreshFieldPanel();
+}
+document.getElementById('fieldbtn').addEventListener('click', function () {
+  document.getElementById('fieldpanel').classList.toggle('open');
+});
 
 function stageEl() { return document.getElementById('stage'); }
 function blkPos(el) {
@@ -453,8 +556,11 @@ function blkPos(el) {
 }
 function saveLayout() {
   var data = {};
+  try { data = JSON.parse(localStorage.getItem(LKEY) || '{}'); } catch (e) { data = {}; }
   Object.keys(blocks).forEach(function (k) {
-    var el = blocks[k], p = blkPos(el);
+    var el = blocks[k];
+    if (!el || el.style.display === 'none') return;
+    var p = blkPos(el);
     data[k] = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, s: parseFloat(el.dataset.scale || '1') };
   });
   try { localStorage.setItem(LKEY, JSON.stringify(data)); } catch (e) {}
@@ -557,6 +663,8 @@ document.getElementById('layoutreset').addEventListener('click', function () {
   if (records.length) drawMap(Math.max(0, lastIdx));
 });
 applyLayout();
+buildFieldPanel();
+applyVisibility();
 
 function applyView() {
   if (!player || !player.setSphericalProperties) return;
