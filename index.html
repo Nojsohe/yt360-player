@@ -29,7 +29,7 @@
   #speedbox .unit { font-size: clamp(11px, 2.6vw, 15px); color: #cbd5e1; }
   #mapbox { position: absolute; top: 3%; right: 3%; width: 32%; max-width: 260px; aspect-ratio: 4/3; background: rgba(8,11,17,.55); border: 1px solid rgba(255,255,255,.25); border-radius: 8px; }
   #map { width: 100%; height: 100%; display: block; }
-  .chip { background: rgba(8,11,17,.62); border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 2px 5px; width: 15.5%; max-width: 132px; box-sizing: border-box; }
+  .chip { position: absolute; background: rgba(8,11,17,.62); border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 2px 5px; width: 15.5%; max-width: 132px; box-sizing: border-box; }
   .chip .lab { font-size: 8px; color: #9fb0c3; }
   .chip .val { font-size: clamp(11px, 3vw, 15px); font-weight: 600; white-space: nowrap; }
   .chip .val small { font-size: .62em; color: #9fb0c3; font-weight: 400; }
@@ -57,12 +57,13 @@
   body.editing #editbar { display: flex; }
   #editshield { position: absolute; inset: 0; z-index: 6; display: none; touch-action: none; }
   body.editing #editshield { display: block; }
+  body.editing #stage { touch-action: none; }
   .buildtag { font-size: 11px; color: #64748b; margin: -6px 0 8px; }
 </style>
 </head>
 <body>
 <h1>360°動画 × FITデータ プレイヤー</h1>
-<div class="buildtag">build 20261112-3</div>
+<div class="buildtag">build 20261112-5</div>
 
 <div class="row">
   <input type="text" id="yturl" placeholder="YouTubeのURL（または動画ID）を貼り付け" value="https://youtu.be/smwZzaFzRQs">
@@ -493,7 +494,7 @@ var panOn = false, yaw = 0, pitch = 0, fov = 100;
 var panLayer = document.getElementById('panlayer');
 
 // ---- レイアウト編集（長押しで移動・サイズ変更、localStorageに保存） ----
-var LKEY = 'yt360hud-v2';
+var LKEY = 'yt360hud-v3';
 var blocks = {
   speed: document.getElementById('speedbox'),
   map: document.getElementById('mapbox'),
@@ -671,26 +672,43 @@ shield.addEventListener('pointerdown', function (e) {
       var p = blkPos(el);
       drag = { key: order[i], pid: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: p.x, baseY: p.y, sw: s.width, sh: s.height, active: true };
       selectBlk(order[i]);
+      try { shield.setPointerCapture(e.pointerId); } catch (err) {}
+      var fmeta = null;
+      FIELDS.forEach(function (x) { if (x.blk === order[i]) fmeta = x; });
+      setStatus('「' + (fmeta ? fmeta.label : order[i]) + '」を選択中：そのままドラッグで移動できます');
       e.preventDefault();
       break;
     }
   }
 });
-document.addEventListener('pointermove', function (e) {
-  if (!drag || drag.pid !== e.pointerId) return;
+function moveDrag(cx, cy) {
   var el = blocks[drag.key];
   if (!el) return;
-  var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
-  if (!drag.active) {
-    if (Math.abs(dx) > 14 || Math.abs(dy) > 14) { clearTimeout(pressTimer); }
-    return;
-  }
+  var dx = cx - drag.startX, dy = cy - drag.startY;
   var nx = Math.max(0, Math.min(92, drag.baseX + dx / drag.sw * 100));
   var ny = Math.max(0, Math.min(92, drag.baseY + dy / drag.sh * 100));
   el.style.left = nx + '%';
   el.style.top = ny + '%';
   el.style.right = 'auto';
   el.style.bottom = 'auto';
+}
+document.addEventListener('pointermove', function (e) {
+  if (!drag || drag.pid !== e.pointerId) return;
+  if (!drag.active) {
+    if (Math.abs(e.clientX - drag.startX) > 14 || Math.abs(e.clientY - drag.startY) > 14) { clearTimeout(pressTimer); }
+    return;
+  }
+  moveDrag(e.clientX, e.clientY);
+});
+document.addEventListener('touchmove', function (e) {
+  if (!drag || !drag.active) return;
+  var t = e.changedTouches[0];
+  if (!t) return;
+  e.preventDefault();
+  moveDrag(t.clientX, t.clientY);
+}, { passive: false });
+document.addEventListener('touchend', function () {
+  if (drag && drag.active && document.body.classList.contains('editing')) saveLayout();
 });
 function endDragDoc(e) {
   if (pressTimer) clearTimeout(pressTimer);
