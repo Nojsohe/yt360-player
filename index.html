@@ -39,6 +39,11 @@
   #status { font-size: 12px; color: #7dd3fc; margin-top: 8px; min-height: 16px; }
   .help { font-size: 12px; color: #94a3b8; line-height: 1.7; margin-top: 12px; }
   .help b { color: #cbd5e1; }
+  #speedbox, #mapbox, #chips { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body.editing #speedbox, body.editing #mapbox, body.editing #chips { outline: 2px dashed rgba(125,211,252,.85); outline-offset: 2px; }
+  body.editing .blk-sel { outline: 2px solid #38bdf8 !important; }
+  #editbar { display: none; }
+  body.editing #editbar { display: flex; }
 </style>
 </head>
 <body>
@@ -92,11 +97,19 @@
   <button class="sub" data-d="1">＋1s</button>
   <button class="sub" data-d="10">＋10s</button>
 </div>
+<div class="ctl" id="editbar">
+  <span class="lab">レイアウト編集中：ブロックをドラッグで移動、選んだブロックの大きさ変更</span>
+  <button class="sub" id="szdown">− 小さく</button>
+  <button class="sub" id="szup">＋ 大きく</button>
+  <button class="sub" id="layoutreset">配置リセット</button>
+  <button id="editdone">完了</button>
+</div>
 <div id="status"></div>
 
 <div class="help">
   <b>使い方</b>：① YouTubeの360°動画URLを読み込む → ② 対応するFITファイルを選ぶ → ③ 再生。映像の中でドラッグ／スワイプすると視点が動き、データ表示は画面に固定されたまま連動します。<br>
   <b>同期の合わせ方</b>：動画の開始がライド開始とズレている場合、オフセットに「動画0秒の時点でFIT開始から何秒経っていたか」を入れます（例：走り始めて60秒後に録画開始した動画なら 60）。<br>
+  <b>レイアウト変更</b>：速度・MAP・データ表示は長押しすると編集モードになり、ドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
   <b>視点の動かし方</b>：スマホのブラウザ埋め込みではYouTube標準のドラッグ視点移動が効かないため、「視点ドラッグ: ON」にすると映像の上をドラッグして視点を動かせます（公式APIで視点を制御）。ONの間はYouTubeのシークバーが使えないので、シークしたい時はOFFに戻してください。対応機種では、OFFの状態でスマホ本体を傾けても視点が動きます。<br>
   <b>注意</b>：YouTube側で「埋め込み」が無効な動画は再生できません（YouTube Studioの動画設定で埋め込み許可が必要）。このページは動画もFITも外部送信しません（FITは端末内でのみ読み取ります）。
 </div>
@@ -423,6 +436,127 @@ function clearHud() {
 }
 var panOn = false, yaw = 0, pitch = 0, fov = 100;
 var panLayer = document.getElementById('panlayer');
+
+// ---- レイアウト編集（長押しで移動・サイズ変更、localStorageに保存） ----
+var LKEY = 'yt360hud-v1';
+var blocks = {
+  speed: document.getElementById('speedbox'),
+  map: document.getElementById('mapbox'),
+  chips: document.getElementById('chips')
+};
+var selKey = null;
+
+function stageEl() { return document.getElementById('stage'); }
+function blkPos(el) {
+  var r = el.getBoundingClientRect(), s = stageEl().getBoundingClientRect();
+  return { x: (r.left - s.left) / s.width * 100, y: (r.top - s.top) / s.height * 100 };
+}
+function saveLayout() {
+  var data = {};
+  Object.keys(blocks).forEach(function (k) {
+    var el = blocks[k], p = blkPos(el);
+    data[k] = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, s: parseFloat(el.dataset.scale || '1') };
+  });
+  try { localStorage.setItem(LKEY, JSON.stringify(data)); } catch (e) {}
+}
+function applyLayout() {
+  var data = null;
+  try { data = JSON.parse(localStorage.getItem(LKEY) || 'null'); } catch (e) {}
+  if (!data) return;
+  Object.keys(blocks).forEach(function (k) {
+    var d = data[k], el = blocks[k];
+    if (!d || !el) return;
+    el.style.left = d.x + '%';
+    el.style.top = d.y + '%';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.transformOrigin = '0 0';
+    el.style.transform = 'scale(' + d.s + ')';
+    el.dataset.scale = d.s;
+  });
+}
+function selectBlk(k) {
+  selKey = k;
+  Object.keys(blocks).forEach(function (key) {
+    blocks[key].classList.toggle('blk-sel', key === k);
+  });
+}
+function enterEdit(k) {
+  document.body.classList.add('editing');
+  selectBlk(k);
+  setStatus('レイアウト編集中：ドラッグで移動、下のボタンで大きさ変更。終わったら「完了」');
+}
+
+var drag = null, pressTimer = null;
+Object.keys(blocks).forEach(function (k) {
+  var el = blocks[k];
+  el.addEventListener('pointerdown', function (e) {
+    var s = stageEl().getBoundingClientRect();
+    var p = blkPos(el);
+    drag = { key: k, pid: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: p.x, baseY: p.y, sw: s.width, sh: s.height, active: false };
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    if (document.body.classList.contains('editing')) {
+      selectBlk(k);
+      drag.active = true;
+    } else {
+      pressTimer = setTimeout(function () {
+        if (drag && drag.key === k) { enterEdit(k); drag.active = true; }
+      }, 550);
+    }
+  });
+  el.addEventListener('pointermove', function (e) {
+    if (!drag || drag.pid !== e.pointerId || drag.key !== k) return;
+    var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+    if (!drag.active) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) { clearTimeout(pressTimer); }
+      return;
+    }
+    var nx = Math.max(0, Math.min(92, drag.baseX + dx / drag.sw * 100));
+    var ny = Math.max(0, Math.min(92, drag.baseY + dy / drag.sh * 100));
+    el.style.left = nx + '%';
+    el.style.top = ny + '%';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+  });
+  function endDrag(e) {
+    if (pressTimer) clearTimeout(pressTimer);
+    if (drag && drag.pid === e.pointerId) {
+      if (drag.active && document.body.classList.contains('editing')) saveLayout();
+      drag = null;
+    }
+  }
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+});
+
+document.getElementById('editdone').addEventListener('click', function () {
+  document.body.classList.remove('editing');
+  saveLayout();
+  setStatus('レイアウトを保存しました（この端末・ブラウザに保存されます）');
+});
+document.getElementById('szup').addEventListener('click', function () { scaleSel(0.1); });
+document.getElementById('szdown').addEventListener('click', function () { scaleSel(-0.1); });
+function scaleSel(d) {
+  if (!selKey) { setStatus('先にブロックを選んでください'); return; }
+  var el = blocks[selKey];
+  var s = Math.round((parseFloat(el.dataset.scale || '1') + d) * 10) / 10;
+  s = Math.max(0.5, Math.min(2.0, s));
+  el.dataset.scale = s;
+  el.style.transformOrigin = '0 0';
+  el.style.transform = 'scale(' + s + ')';
+  saveLayout();
+}
+document.getElementById('layoutreset').addEventListener('click', function () {
+  Object.keys(blocks).forEach(function (k) {
+    var el = blocks[k];
+    el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = ''; el.style.transform = '';
+    el.dataset.scale = '1';
+  });
+  try { localStorage.removeItem(LKEY); } catch (e) {}
+  setStatus('配置を初期状態に戻しました');
+  if (records.length) drawMap(Math.max(0, lastIdx));
+});
+applyLayout();
 
 function applyView() {
   if (!player || !player.setSphericalProperties) return;
