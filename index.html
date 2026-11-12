@@ -51,7 +51,7 @@
   .help { font-size: 12px; color: #94a3b8; line-height: 1.7; margin-top: 12px; }
   .help b { color: #cbd5e1; }
   #speedbox, #mapbox, .chip, #viewpad { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  body.editing #speedbox, body.editing #mapbox, body.editing .chip, body.editing #viewpad { outline: 2px dashed rgba(125,211,252,.85); outline-offset: 2px; }
+  body.editing #speedbox, body.editing #mapbox, body.editing .chip, body.editing #viewpad.instage { outline: 2px dashed rgba(125,211,252,.85); outline-offset: 2px; }
   body.editing .blk-sel { outline: 2px solid #38bdf8 !important; }
   .snaphint { outline: 2px solid #fbbf24 !important; outline-offset: 2px; }
   #editbar { display: none; }
@@ -59,7 +59,8 @@
   body.editing #editbar .lab { font-size: 12px; color: #94a3b8; }
   select { background: #171c26; border: 1px solid #2c3547; color: #e8ecf1; border-radius: 8px; padding: 8px; font-size: 14px; }
   input[type="range"] { accent-color: #2563eb; height: 28px; }
-  #viewpad { position: absolute; left: 33%; bottom: 2.5%; width: 34%; height: 88px; z-index: 4; background: rgba(10,14,20,.45); border: 1px solid rgba(255,255,255,.25); border-radius: 12px; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; box-sizing: border-box; }
+  #viewpad { position: relative; flex: 1; height: 112px; background: #11151d; border: 1px solid #2c3547; border-radius: 12px; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; box-sizing: border-box; }
+  #viewpad.instage { position: absolute; left: 33%; bottom: 2.5%; width: 34%; height: 88px; z-index: 4; background: rgba(10,14,20,.45); border-color: rgba(255,255,255,.25); }
   #viewpad.active { border-color: #38bdf8; background: #152233; }
   #viewpad .vp-a, #viewpad .vp-c { position: absolute; color: #5b6b82; font-size: 15px; transform: translate(-50%, -50%); pointer-events: none; }
   #viewpad .vp-c { color: #7d8ea8; font-size: 18px; left: 50%; top: 50%; }
@@ -76,7 +77,7 @@
 </head>
 <body>
 <h1>360°動画 × FITデータ プレイヤー</h1>
-<div class="buildtag">build 20261112-11</div>
+<div class="buildtag">build 20261112-12</div>
 
 <div class="row">
   <input type="text" id="yturl" placeholder="YouTubeのURL（または動画ID）を貼り付け" value="https://youtu.be/smwZzaFzRQs">
@@ -104,14 +105,6 @@
     <div class="chip" id="chip-pow"><div class="lab">パワー</div><div class="val"><span id="c-pow">--</span> <small>W</small></div></div>
     <div class="chip" id="chip-time"><div class="lab">経過</div><div class="val"><span id="c-time">--:--</span></div></div>
   </div>
-  <div id="viewpad">
-    <span class="vp-label">視点パッド（押しながらスライド／ダブルタップで正面）</span>
-    <span class="vp-a vp-up">▲</span>
-    <span class="vp-a vp-left">◀</span>
-    <span class="vp-c">◎</span>
-    <span class="vp-a vp-right">▶</span>
-    <span class="vp-a vp-down">▼</span>
-  </div>
   <div id="editshield"></div>
   <div id="editbar">
     <span class="lab">レイアウト編集中：ドラッグで移動、選んだ表示の大きさ変更</span>
@@ -130,6 +123,16 @@
   <button class="sub" id="zoomin">＋ ズーム</button>
   <button class="sub" id="zoomout">− ズーム</button>
   <button class="sub" id="panreset">正面に戻す</button>
+</div>
+<div class="ctl" id="padslot">
+  <div id="viewpad">
+    <span class="vp-label">視点パッド（押しながらスライド／ダブルタップで正面）</span>
+    <span class="vp-a vp-up">▲</span>
+    <span class="vp-a vp-left">◀</span>
+    <span class="vp-c">◎</span>
+    <span class="vp-a vp-right">▶</span>
+    <span class="vp-a vp-down">▼</span>
+  </div>
 </div>
 <div class="ctl">
   <span class="lab" id="seekcur">0:00</span>
@@ -174,7 +177,7 @@
   <b>レイアウト変更</b>：「レイアウト編集」ボタンを押す（または各表示を長押しする）と編集モードになり、速度・MAP・各データ表示を1つずつドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。ドラッグ中に他の表示の端へ近づけると吸着（スナップ）します（吸着先が黄色枠で光ります）。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
   <b>全画面の配置</b>：配置は通常表示用と全画面用で別々に保存されます。全画面にした時に位置が合わなければ、全画面のまま編集して保存すれば次回からその配置になります。文字の大きさはプレイヤーの大きさに比例して自動で変わります。<br>
   <b>表示項目</b>：「表示項目を設定」から、速度・距離・標高・スロープ・心拍・ケイデンス・パワー・経過時間・MAPを個別にON/OFFできます。読み込んだFITに無いデータの項目は自動で隠れ、パネルに「このFITにデータなし」と出ます。設定は保存されます。<br>
-  <b>視点の動かし方</b>：映像の下部に出ている「視点パッド」が一番簡単です。押しながらスライドすると視点が動き、離すと止まります（ダブルタップで正面に戻ります）。ON/OFFの切り替えは不要で、全画面でもそのまま使えます。パッドの位置と大きさはレイアウト編集で他の表示と同じように変更できます（全画面で編集モードに入るには、速度やMAPなどの表示を長押ししてください）。<br>
+  <b>視点の動かし方</b>：視点パッドが一番簡単です。通常画面ではボタン類の下にあります。押しながらスライドすると視点が動き、離すと止まります（ダブルタップで正面に戻ります）。ON/OFFの切り替えは不要です。全画面ではパッドは映像の上に表示され、位置と大きさをレイアウト編集で変更できます（全画面で編集モードに入るには、速度やMAPなどの表示を長押ししてください）。<br>
   もう一つの方法：スマホのブラウザ埋め込みではYouTube標準のドラッグ視点移動が効かないため、「視点ドラッグ: ON」にすると映像の上をドラッグして視点を動かせます（公式APIで視点を制御）。ONの間はYouTube側のシークバーや設定ボタンが映像上の表示に隠れて使えませんが、画面下のボタン類にあるスライダーでシークでき、再生速度と画質も変更できます（画質はYouTube側の判断で反映されない場合があります）。対応機種では、OFFの状態でスマホ本体を傾けても視点が動きます。<br>
   <b>注意</b>：YouTube側で「埋め込み」が無効な動画は再生できません（YouTube Studioの動画設定で埋め込み許可が必要）。このページは動画もFITも外部送信しません（FITは端末内でのみ読み取ります）。
 </div>
@@ -650,6 +653,7 @@ function saveLayout() {
   Object.keys(blocks).forEach(function (k) {
     var el = blocks[k];
     if (!el || el.style.display === 'none') return;
+    if (k === 'pad' && !fsMode) return; // 通常画面ではパッドは操作欄側（レイアウト対象外）
     var p = blkPos(el);
     data[k] = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, s: parseFloat(el.dataset.scale || '1') };
   });
@@ -671,6 +675,7 @@ function applyLayout() {
   Object.keys(blocks).forEach(function (k) {
     var d = data[k], el = blocks[k];
     if (!d || !el) return;
+    if (k === 'pad' && !fsMode) return; // 通常画面ではパッドは操作欄側（レイアウト対象外）
     el.style.left = d.x + '%';
     el.style.top = d.y + '%';
     el.style.right = 'auto';
@@ -685,10 +690,21 @@ function updateUnit() {
   var w = st.getBoundingClientRect().width;
   if (w > 0) st.style.setProperty('--u', (w / 100) + 'px');
 }
+function movePadForMode() {
+  var pad = document.getElementById('viewpad');
+  if (fsMode) {
+    pad.classList.add('instage');
+    stageEl().insertBefore(pad, document.getElementById('editshield'));
+  } else {
+    pad.classList.remove('instage');
+    document.getElementById('padslot').appendChild(pad);
+  }
+}
 document.addEventListener('fullscreenchange', function () {
   var nowFs = !!document.fullscreenElement;
   if (nowFs === fsMode) return;
   fsMode = nowFs;
+  movePadForMode();
   applyLayout();
   updateUnit();
   lastIdx = -1;
