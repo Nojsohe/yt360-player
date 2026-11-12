@@ -22,8 +22,10 @@
   #stage:fullscreen { border-radius: 0; }
   #player, #stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
   #hud { position: absolute; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; z-index: 3; }
-  #panlayer { position: absolute; inset: 0; display: none; touch-action: none; z-index: 2; cursor: grab; }
-  #panlayer.on { display: block; }
+  #viewctl { position: absolute; right: 2%; top: 40%; z-index: 4; display: flex; flex-direction: column; gap: 8px; }
+  .vcbtn { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); background: rgba(10,14,20,.55); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  .vcbtn:active { background: rgba(56,189,248,.45); }
+  .vcbtn svg { width: 22px; height: 22px; pointer-events: none; }
   #speedbox { position: absolute; top: 3%; left: 3%; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
   #speed { font-size: clamp(26px, calc(var(--u, 10px) * 8.5), 60px); font-weight: 700; line-height: 1; }
   #speedbox .unit { font-size: clamp(10px, calc(var(--u, 10px) * 2.4), 16px); color: #cbd5e1; }
@@ -50,8 +52,8 @@
   #status { font-size: 12px; color: #7dd3fc; margin-top: 8px; min-height: 16px; }
   .help { font-size: 12px; color: #94a3b8; line-height: 1.7; margin-top: 12px; }
   .help b { color: #cbd5e1; }
-  #speedbox, #mapbox, .chip, #viewpad { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  body.editing #speedbox, body.editing #mapbox, body.editing .chip, body.editing #viewpad.instage { outline: 2px dashed rgba(125,211,252,.85); outline-offset: 2px; }
+  #speedbox, #mapbox, .chip, #viewpad, #viewctl { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body.editing #speedbox, body.editing #mapbox, body.editing .chip, body.editing #viewpad.instage, body.editing #viewctl { outline: 2px dashed rgba(125,211,252,.85); outline-offset: 2px; }
   body.editing .blk-sel { outline: 2px solid #38bdf8 !important; }
   .snaphint { outline: 2px solid #fbbf24 !important; outline-offset: 2px; }
   #editbar { display: none; }
@@ -77,7 +79,7 @@
 </head>
 <body>
 <h1>360°動画 × FITデータ プレイヤー</h1>
-<div class="buildtag">build 20261112-12</div>
+<div class="buildtag">build 20261112-13</div>
 
 <div class="row">
   <input type="text" id="yturl" placeholder="YouTubeのURL（または動画ID）を貼り付け" value="https://youtu.be/smwZzaFzRQs">
@@ -90,7 +92,6 @@
 
 <div id="stage">
   <div id="player"></div>
-  <div id="panlayer"></div>
   <div id="hud">
     <div id="speedbox">
       <div id="speed">--.-</div>
@@ -105,6 +106,11 @@
     <div class="chip" id="chip-pow"><div class="lab">パワー</div><div class="val"><span id="c-pow">--</span> <small>W</small></div></div>
     <div class="chip" id="chip-time"><div class="lab">経過</div><div class="val"><span id="c-time">--:--</span></div></div>
   </div>
+  <div id="viewctl">
+    <button class="vcbtn" id="vcfs" title="全画面"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="vcbtn" id="vczin" title="ズームイン"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    <button class="vcbtn" id="vczout" title="ズームアウト"><svg viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+  </div>
   <div id="editshield"></div>
   <div id="editbar">
     <span class="lab">レイアウト編集中：ドラッグで移動、選んだ表示の大きさ変更</span>
@@ -115,15 +121,6 @@
   </div>
 </div>
 
-<div class="ctl">
-  <button class="sub" id="playbtn">▶ 再生 / ⏸ 停止</button>
-  <button class="sub" id="fsbtn">全画面</button>
-  <button class="sub" id="panbtn">視点ドラッグ: OFF</button>
-  <button class="sub" id="editbtn">レイアウト編集</button>
-  <button class="sub" id="zoomin">＋ ズーム</button>
-  <button class="sub" id="zoomout">− ズーム</button>
-  <button class="sub" id="panreset">正面に戻す</button>
-</div>
 <div class="ctl" id="padslot">
   <div id="viewpad">
     <span class="vp-label">視点パッド（押しながらスライド／ダブルタップで正面）</span>
@@ -174,11 +171,11 @@
 <div class="help">
   <b>使い方</b>：① YouTubeの360°動画URLを読み込む → ② 対応するFITファイルを選ぶ → ③ 再生。映像の中でドラッグ／スワイプすると視点が動き、データ表示は画面に固定されたまま連動します。<br>
   <b>同期の合わせ方</b>：動画の開始がライド開始とズレている場合、オフセットに「動画0秒の時点でFIT開始から何秒経っていたか」を入れます（例：走り始めて60秒後に録画開始した動画なら 60）。<br>
-  <b>レイアウト変更</b>：「レイアウト編集」ボタンを押す（または各表示を長押しする）と編集モードになり、速度・MAP・各データ表示を1つずつドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。ドラッグ中に他の表示の端へ近づけると吸着（スナップ）します（吸着先が黄色枠で光ります）。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
+  <b>レイアウト変更</b>：各表示を長押しすると編集モードになり、速度・MAP・各データ表示・アイコンボタンを1つずつドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。ドラッグ中に他の表示の端へ近づけると吸着（スナップ）します（吸着先が黄色枠で光ります）。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
   <b>全画面の配置</b>：配置は通常表示用と全画面用で別々に保存されます。全画面にした時に位置が合わなければ、全画面のまま編集して保存すれば次回からその配置になります。文字の大きさはプレイヤーの大きさに比例して自動で変わります。<br>
   <b>表示項目</b>：「表示項目を設定」から、速度・距離・標高・スロープ・心拍・ケイデンス・パワー・経過時間・MAPを個別にON/OFFできます。読み込んだFITに無いデータの項目は自動で隠れ、パネルに「このFITにデータなし」と出ます。設定は保存されます。<br>
-  <b>視点の動かし方</b>：視点パッドが一番簡単です。通常画面ではボタン類の下にあります。押しながらスライドすると視点が動き、離すと止まります（ダブルタップで正面に戻ります）。ON/OFFの切り替えは不要です。全画面ではパッドは映像の上に表示され、位置と大きさをレイアウト編集で変更できます（全画面で編集モードに入るには、速度やMAPなどの表示を長押ししてください）。<br>
-  もう一つの方法：スマホのブラウザ埋め込みではYouTube標準のドラッグ視点移動が効かないため、「視点ドラッグ: ON」にすると映像の上をドラッグして視点を動かせます（公式APIで視点を制御）。ONの間はYouTube側のシークバーや設定ボタンが映像上の表示に隠れて使えませんが、画面下のボタン類にあるスライダーでシークでき、再生速度と画質も変更できます（画質はYouTube側の判断で反映されない場合があります）。対応機種では、OFFの状態でスマホ本体を傾けても視点が動きます。<br>
+  <b>視点の動かし方</b>：視点パッドが一番簡単です。通常画面ではボタン類の下にあります。押しながらスライドすると視点が動き、離すと止まります（ダブルタップで正面に戻ります）。全画面ではパッドは映像の上に表示され、位置と大きさをレイアウト編集で変更できます。<br>
+  <b>全画面とズーム</b>：映像の右側にある丸いアイコンから、全画面の切り替えとズームイン／アウトができます（通常画面・全画面の両方で使えます）。アイコンの位置と大きさもレイアウト編集で変更できます。再生／停止は映像をタップしてください（YouTube標準の操作）。シークは下のスライダーでもできます。<br>
   <b>注意</b>：YouTube側で「埋め込み」が無効な動画は再生できません（YouTube Studioの動画設定で埋め込み許可が必要）。このページは動画もFITも外部送信しません（FITは端末内でのみ読み取ります）。
 </div>
 
@@ -437,16 +434,6 @@ document.querySelectorAll('[data-d]').forEach(function (b) {
   });
 });
 
-document.getElementById('playbtn').addEventListener('click', function () {
-  if (!player || !player.getPlayerState) return;
-  if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo();
-});
-document.getElementById('fsbtn').addEventListener('click', function () {
-  var st = document.getElementById('stage');
-  if (document.fullscreenElement) document.exitFullscreen();
-  else if (st.requestFullscreen) st.requestFullscreen();
-});
-
 function findIdx(at) {
   var lo = 0, hi = records.length - 1, ans = -1;
   while (lo <= hi) {
@@ -542,8 +529,7 @@ function clearHud() {
   ['c-dist','c-alt','c-grade','c-hr','c-cad','c-pow'].forEach(function (id) { document.getElementById(id).textContent = '--'; });
   document.getElementById('c-time').textContent = '--:--';
 }
-var panOn = false, yaw = 0, pitch = 0, fov = 100;
-var panLayer = document.getElementById('panlayer');
+var yaw = 0, pitch = 0, fov = 100;
 
 // ---- レイアウト編集（長押しで移動・サイズ変更、localStorageに保存） ----
 var LKEY = 'yt360hud-v3';
@@ -557,7 +543,8 @@ var blocks = {
   'chip-cad': document.getElementById('chip-cad'),
   'chip-pow': document.getElementById('chip-pow'),
   'chip-time': document.getElementById('chip-time'),
-  pad: document.getElementById('viewpad')
+  pad: document.getElementById('viewpad'),
+  viewctl: document.getElementById('viewctl')
 };
 var selKey = null;
 
@@ -573,9 +560,10 @@ var FIELDS = [
   { f: 'pow', label: 'パワー', blk: 'chip-pow' },
   { f: 'time', label: '経過時間', blk: 'chip-time' },
   { f: 'map', label: 'ルートマップ', blk: 'map' },
-  { f: 'pad', label: '視点パッド', blk: 'pad' }
+  { f: 'pad', label: '視点パッド', blk: 'pad' },
+  { f: 'viewctl', label: '全画面・ズームボタン', blk: 'viewctl' }
 ];
-var avail = { speed: true, dist: true, alt: true, grade: true, hr: true, cad: true, pow: true, time: true, map: true, pad: true };
+var avail = { speed: true, dist: true, alt: true, grade: true, hr: true, cad: true, pow: true, time: true, map: true, pad: true, viewctl: true };
 var fitLoaded = false;
 var fprefs = {};
 try { fprefs = JSON.parse(localStorage.getItem(FKEY) || '{}'); } catch (e) { fprefs = {}; }
@@ -600,7 +588,7 @@ function computeAvail() {
     if (r.pow != null) a.pow = true;
     if (r.lat != null && r.lon != null) a.gps++;
   }
-  avail = { speed: a.speed, dist: a.dist, alt: a.alt, grade: (a.alt && a.dist), hr: a.hr, cad: a.cad, pow: a.pow, time: true, map: a.gps >= 2, pad: true };
+  avail = { speed: a.speed, dist: a.dist, alt: a.alt, grade: (a.alt && a.dist), hr: a.hr, cad: a.cad, pow: a.pow, time: true, map: a.gps >= 2, pad: true, viewctl: true };
 }
 function refreshFieldPanel() {
   FIELDS.forEach(function (x) {
@@ -720,15 +708,11 @@ function selectBlk(k) {
 function enterEdit(k) {
   document.body.classList.add('editing');
   if (k) selectBlk(k);
-  var eb = document.getElementById('editbtn');
-  if (eb) eb.textContent = '編集中（タップで完了）';
   setStatus('レイアウト編集中：ドラッグで移動、下のボタンで大きさ変更。終わったら「完了」');
 }
 function exitEdit() {
   document.body.classList.remove('editing');
   saveLayout();
-  var eb = document.getElementById('editbtn');
-  if (eb) eb.textContent = 'レイアウト編集';
 }
 
 var drag = null, pressTimer = null;
@@ -740,7 +724,7 @@ Object.keys(blocks).forEach(function (k) {
     var s = stageEl().getBoundingClientRect();
     var p = blkPos(el);
     drag = { key: k, pid: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: p.x, baseY: p.y, sw: s.width, sh: s.height, active: false };
-    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    try { if (k !== 'viewctl') el.setPointerCapture(e.pointerId); } catch (err) {} // viewctlは中のボタンのクリックを通すためキャプチャしない
     if (document.body.classList.contains('editing')) {
       e.preventDefault();
       selectBlk(k);
@@ -757,7 +741,7 @@ shield.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 shield.addEventListener('pointerdown', function (e) {
   if (!document.body.classList.contains('editing')) return;
   var s = stageEl().getBoundingClientRect();
-  var order = ['pad', 'chip-time', 'chip-pow', 'chip-cad', 'chip-hr', 'chip-grade', 'chip-alt', 'chip-dist', 'map', 'speed'];
+  var order = ['pad', 'viewctl', 'chip-time', 'chip-pow', 'chip-cad', 'chip-hr', 'chip-grade', 'chip-alt', 'chip-dist', 'map', 'speed'];
   for (var i = 0; i < order.length; i++) {
     var el = blocks[order[i]];
     if (!el || el.style.display === 'none') continue;
@@ -851,14 +835,6 @@ document.getElementById('editdone').addEventListener('click', function () {
   exitEdit();
   setStatus('レイアウトを保存しました（この端末・ブラウザに保存されます）');
 });
-document.getElementById('editbtn').addEventListener('click', function () {
-  if (document.body.classList.contains('editing')) {
-    exitEdit();
-    setStatus('レイアウトを保存しました（この端末・ブラウザに保存されます）');
-  } else {
-    enterEdit(selKey || 'speed');
-  }
-});
 document.getElementById('szup').addEventListener('click', function () { scaleSel(0.1); });
 document.getElementById('szdown').addEventListener('click', function () { scaleSel(-0.1); });
 function scaleSel(d) {
@@ -894,52 +870,21 @@ function applyView() {
   } catch (e) {}
 }
 
-document.getElementById('panbtn').addEventListener('click', function () {
-  if (!player || !player.getSphericalProperties) { setStatus('動画を読み込んでから操作してください'); return; }
-  panOn = !panOn;
-  panLayer.classList.toggle('on', panOn);
-  this.textContent = '視点ドラッグ: ' + (panOn ? 'ON' : 'OFF');
-  if (panOn) {
-    try {
-      var p = player.getSphericalProperties() || {};
-      if (typeof p.yaw === 'number') yaw = p.yaw;
-      if (typeof p.pitch === 'number') pitch = p.pitch;
-      if (typeof p.fov === 'number') fov = p.fov;
-      if (typeof p.yaw !== 'number' && typeof p.fov !== 'number') {
-        setStatus('この端末では埋め込み360°の視点変更がサポートされていない可能性があります');
-      } else {
-        applyView();
-        setStatus('視点ドラッグON：映像の上をドラッグで視点移動、＋/−でズーム。シークは下のスライダーでできます');
-      }
-    } catch (e) { setStatus('視点情報の取得に失敗しました'); }
-  } else {
-    setStatus('視点ドラッグOFF：YouTube標準の操作に戻りました');
-  }
+// ---- 映像上のアイコンボタン（全画面・ズーム） ----
+var viewDirty = false;
+document.getElementById('vcfs').addEventListener('click', function () {
+  var st = document.getElementById('stage');
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (st.requestFullscreen) st.requestFullscreen();
 });
-
-var dragId = null, lastX = 0, lastY = 0, viewDirty = false;
-panLayer.addEventListener('pointerdown', function (e) {
-  dragId = e.pointerId; lastX = e.clientX; lastY = e.clientY;
-  panLayer.setPointerCapture(dragId);
-});
-panLayer.addEventListener('pointermove', function (e) {
-  if (dragId === null || e.pointerId !== dragId) return;
-  var dx = e.clientX - lastX, dy = e.clientY - lastY;
-  lastX = e.clientX; lastY = e.clientY;
-  yaw += dx * 0.3;
-  pitch += dy * 0.3;
-  if (!viewDirty) {
-    viewDirty = true;
-    requestAnimationFrame(function () { applyView(); viewDirty = false; });
-  }
-});
-function endDrag(e) { if (e.pointerId === dragId) dragId = null; }
-panLayer.addEventListener('pointerup', endDrag);
-panLayer.addEventListener('pointercancel', endDrag);
-
-document.getElementById('zoomin').addEventListener('click', function () { fov -= 10; if (panOn) applyView(); else if (player && player.setSphericalProperties) { try { player.setSphericalProperties({ fov: Math.max(30, Math.min(120, fov)) }); } catch (e) {} } });
-document.getElementById('zoomout').addEventListener('click', function () { fov += 10; if (panOn) applyView(); else if (player && player.setSphericalProperties) { try { player.setSphericalProperties({ fov: Math.max(30, Math.min(120, fov)) }); } catch (e) {} } });
-document.getElementById('panreset').addEventListener('click', function () { yaw = 0; pitch = 0; if (panOn) applyView(); });
+function zoomStep(d) {
+  if (!player || !player.setSphericalProperties) { setStatus('動画を読み込んでから操作してください'); return; }
+  syncViewFromPlayer();
+  fov += d;
+  applyView();
+}
+document.getElementById('vczin').addEventListener('click', function () { zoomStep(-10); });
+document.getElementById('vczout').addEventListener('click', function () { zoomStep(10); });
 
 // ---- 視点パッド（触っている間だけ視点操作） ----
 var viewpad = document.getElementById('viewpad');
