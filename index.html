@@ -59,6 +59,15 @@
   body.editing #editbar .lab { font-size: 12px; color: #94a3b8; }
   select { background: #171c26; border: 1px solid #2c3547; color: #e8ecf1; border-radius: 8px; padding: 8px; font-size: 14px; }
   input[type="range"] { accent-color: #2563eb; height: 28px; }
+  #viewpad { position: relative; flex: 1; height: 112px; background: #11151d; border: 1px solid #2c3547; border-radius: 12px; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; }
+  #viewpad.active { border-color: #38bdf8; background: #152233; }
+  #viewpad .vp-a, #viewpad .vp-c { position: absolute; color: #5b6b82; font-size: 15px; transform: translate(-50%, -50%); pointer-events: none; }
+  #viewpad .vp-c { color: #7d8ea8; font-size: 18px; left: 50%; top: 50%; }
+  #viewpad .vp-up { left: 50%; top: 16%; }
+  #viewpad .vp-down { left: 50%; top: 84%; }
+  #viewpad .vp-left { left: 12%; top: 50%; }
+  #viewpad .vp-right { left: 88%; top: 50%; }
+  #viewpad .vp-label { position: absolute; left: 10px; top: 6px; font-size: 11px; color: #5b6b82; pointer-events: none; }
   #editshield { position: absolute; inset: 0; z-index: 6; display: none; touch-action: none; }
   body.editing #editshield { display: block; }
   body.editing #stage { touch-action: none; }
@@ -67,7 +76,7 @@
 </head>
 <body>
 <h1>360°動画 × FITデータ プレイヤー</h1>
-<div class="buildtag">build 20261112-9</div>
+<div class="buildtag">build 20261112-10</div>
 
 <div class="row">
   <input type="text" id="yturl" placeholder="YouTubeのURL（または動画ID）を貼り付け" value="https://youtu.be/smwZzaFzRQs">
@@ -115,6 +124,16 @@
   <button class="sub" id="panreset">正面に戻す</button>
 </div>
 <div class="ctl">
+  <div id="viewpad">
+    <span class="vp-label">視点パッド（押しながらスライド／ダブルタップで正面）</span>
+    <span class="vp-a vp-up">▲</span>
+    <span class="vp-a vp-left">◀</span>
+    <span class="vp-c">◎</span>
+    <span class="vp-a vp-right">▶</span>
+    <span class="vp-a vp-down">▼</span>
+  </div>
+</div>
+<div class="ctl">
   <span class="lab" id="seekcur">0:00</span>
   <input type="range" id="seek" min="0" max="1000" step="1" value="0" style="flex:1; min-width:120px">
   <span class="lab" id="seekdur">0:00</span>
@@ -157,7 +176,8 @@
   <b>レイアウト変更</b>：「レイアウト編集」ボタンを押す（または各表示を長押しする）と編集モードになり、速度・MAP・各データ表示を1つずつドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。ドラッグ中に他の表示の端へ近づけると吸着（スナップ）します（吸着先が黄色枠で光ります）。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
   <b>全画面の配置</b>：配置は通常表示用と全画面用で別々に保存されます。全画面にした時に位置が合わなければ、全画面のまま編集して保存すれば次回からその配置になります。文字の大きさはプレイヤーの大きさに比例して自動で変わります。<br>
   <b>表示項目</b>：「表示項目を設定」から、速度・距離・標高・スロープ・心拍・ケイデンス・パワー・経過時間・MAPを個別にON/OFFできます。読み込んだFITに無いデータの項目は自動で隠れ、パネルに「このFITにデータなし」と出ます。設定は保存されます。<br>
-  <b>視点の動かし方</b>：スマホのブラウザ埋め込みではYouTube標準のドラッグ視点移動が効かないため、「視点ドラッグ: ON」にすると映像の上をドラッグして視点を動かせます（公式APIで視点を制御）。ONの間はYouTube側のシークバーや設定ボタンが映像上の表示に隠れて使えませんが、画面下のボタン類にあるスライダーでシークでき、再生速度と画質も変更できます（画質はYouTube側の判断で反映されない場合があります）。対応機種では、OFFの状態でスマホ本体を傾けても視点が動きます。<br>
+  <b>視点の動かし方</b>：ボタン類の下にある「視点パッド」が一番簡単です。押しながらスライドすると視点が動き、離すと止まります（ダブルタップで正面に戻ります）。ON/OFFの切り替えは不要です。<br>
+  もう一つの方法：スマホのブラウザ埋め込みではYouTube標準のドラッグ視点移動が効かないため、「視点ドラッグ: ON」にすると映像の上をドラッグして視点を動かせます（公式APIで視点を制御）。ONの間はYouTube側のシークバーや設定ボタンが映像上の表示に隠れて使えませんが、画面下のボタン類にあるスライダーでシークでき、再生速度と画質も変更できます（画質はYouTube側の判断で反映されない場合があります）。対応機種では、OFFの状態でスマホ本体を傾けても視点が動きます。<br>
   <b>注意</b>：YouTube側で「埋め込み」が無効な動画は再生できません（YouTube Studioの動画設定で埋め込み許可が必要）。このページは動画もFITも外部送信しません（FITは端末内でのみ読み取ります）。
 </div>
 
@@ -903,6 +923,51 @@ panLayer.addEventListener('pointercancel', endDrag);
 document.getElementById('zoomin').addEventListener('click', function () { fov -= 10; if (panOn) applyView(); else if (player && player.setSphericalProperties) { try { player.setSphericalProperties({ fov: Math.max(30, Math.min(120, fov)) }); } catch (e) {} } });
 document.getElementById('zoomout').addEventListener('click', function () { fov += 10; if (panOn) applyView(); else if (player && player.setSphericalProperties) { try { player.setSphericalProperties({ fov: Math.max(30, Math.min(120, fov)) }); } catch (e) {} } });
 document.getElementById('panreset').addEventListener('click', function () { yaw = 0; pitch = 0; if (panOn) applyView(); });
+
+// ---- 視点パッド（触っている間だけ視点操作） ----
+var viewpad = document.getElementById('viewpad');
+var padId = null, padX = 0, padY = 0;
+function syncViewFromPlayer() {
+  if (!player || !player.getSphericalProperties) return false;
+  try {
+    var p = player.getSphericalProperties() || {};
+    if (typeof p.yaw === 'number') yaw = p.yaw;
+    if (typeof p.pitch === 'number') pitch = p.pitch;
+    if (typeof p.fov === 'number') fov = p.fov;
+    return typeof p.yaw === 'number' || typeof p.fov === 'number';
+  } catch (e) { return false; }
+}
+viewpad.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+viewpad.addEventListener('pointerdown', function (e) {
+  if (!player || !player.setSphericalProperties) { setStatus('動画を読み込んでから操作してください'); return; }
+  if (!syncViewFromPlayer()) setStatus('この端末では埋め込み360°の視点変更がサポートされていない可能性があります');
+  padId = e.pointerId; padX = e.clientX; padY = e.clientY;
+  try { viewpad.setPointerCapture(padId); } catch (err) {}
+  viewpad.classList.add('active');
+  e.preventDefault();
+});
+viewpad.addEventListener('pointermove', function (e) {
+  if (padId === null || e.pointerId !== padId) return;
+  var dx = e.clientX - padX, dy = e.clientY - padY;
+  padX = e.clientX; padY = e.clientY;
+  yaw += dx * 0.5;
+  pitch += dy * 0.5;
+  pitch = Math.max(-90, Math.min(90, pitch));
+  if (!viewDirty) {
+    viewDirty = true;
+    requestAnimationFrame(function () { applyView(); viewDirty = false; });
+  }
+});
+function endPad(e) {
+  if (e.pointerId === padId) { padId = null; viewpad.classList.remove('active'); }
+}
+viewpad.addEventListener('pointerup', endPad);
+viewpad.addEventListener('pointercancel', endPad);
+viewpad.addEventListener('dblclick', function () {
+  yaw = 0; pitch = 0;
+  applyView();
+  setStatus('視点を正面に戻しました');
+});
 
 setInterval(sync, 100);
 (function autoLoad(){ var n=0; var iv=setInterval(function(){ n++; if (ytReady) { document.getElementById('loadyt').click(); clearInterval(iv); } else if (n>40) clearInterval(iv); }, 300); })();
