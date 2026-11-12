@@ -62,6 +62,12 @@
   body.editing #editbar .lab { font-size: 12px; color: #94a3b8; }
   select { background: #171c26; border: 1px solid #2c3547; color: #e8ecf1; border-radius: 8px; padding: 8px; font-size: 14px; }
   input[type="range"] { accent-color: #2563eb; height: 28px; }
+  .counter { display: flex; align-items: stretch; flex: 1; min-width: 240px; background: #0d1117; border: 1px solid #2c3547; border-radius: 14px; overflow: hidden; }
+  .counter button { background: #1c2431; color: #e5e9f0; border: none; font-size: 20px; padding: 10px 0; cursor: pointer; -webkit-tap-highlight-color: transparent; flex: 0 0 50px; touch-action: none; }
+  .counter button:active { background: #2a3648; }
+  .counter button.fine { font-size: 12px; flex-basis: 44px; color: #94a3b8; }
+  .counter .val { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 4px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: #7dd3fc; padding: 6px 2px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
+  .counter .val small { font-size: 12px; color: #94a3b8; font-weight: 400; }
   #viewpad { position: relative; flex: 1; height: 112px; background: #11151d; border: 1px solid #2c3547; border-radius: 12px; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; box-sizing: border-box; }
   #viewpad.instage { position: absolute; left: 33%; bottom: 2.5%; width: 34%; height: 88px; z-index: 4; background: rgba(10,14,20,.45); border-color: rgba(255,255,255,.25); }
   #viewpad.active { border-color: #38bdf8; background: #152233; }
@@ -80,7 +86,7 @@
 </head>
 <body>
 <h1>360°動画 × FITデータ プレイヤー</h1>
-<div class="buildtag">build 20261112-14</div>
+<div class="buildtag">build 20261112-15</div>
 
 <div class="row">
   <input type="text" id="yturl" placeholder="YouTubeのURL（または動画ID）を貼り付け" value="https://youtu.be/smwZzaFzRQs">
@@ -154,15 +160,16 @@
   <span class="lab">画質</span>
   <select id="qsel"><option value="auto">自動</option></select>
 </div>
-<div class="ctl">
-  <span class="lab">同期オフセット（動画0秒時点のFIT経過秒）:</span>
-  <button class="sub" data-d="-10">−10s</button>
-  <button class="sub" data-d="-1">−1s</button>
-  <button class="sub" data-d="-0.1">−0.1s</button>
-  <input type="number" id="offset" value="0" step="0.1">
-  <button class="sub" data-d="0.1">＋0.1s</button>
-  <button class="sub" data-d="1">＋1s</button>
-  <button class="sub" data-d="10">＋10s</button>
+<div class="ctl" style="flex-wrap: wrap;">
+  <span class="lab">同期オフセット</span>
+  <div class="counter" id="offcounter">
+    <button class="fine" id="off-m01">−0.1</button>
+    <button id="off-minus">−</button>
+    <div class="val" id="off-val">0.0 <small>秒</small></div>
+    <button id="off-plus">＋</button>
+    <button class="fine" id="off-p01">＋0.1</button>
+  </div>
+  <div style="flex-basis: 100%; font-size: 11px; color: #64748b;">タップで±1秒／長押しで連続／両端で±0.1秒／数値ダブルタップで0（動画0秒時点のFIT経過秒）</div>
 </div>
 <div class="ctl">
   <button class="sub" id="fieldbtn">表示項目を設定</button>
@@ -425,17 +432,38 @@ function fmtTime(sec) {
 
 function setStatus(msg) { document.getElementById('status').textContent = msg; }
 
-document.getElementById('offset').addEventListener('change', function () {
-  offsetSec = parseFloat(this.value) || 0;
+function offShow() {
+  var v = offsetSec;
+  var txt = (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1);
+  document.getElementById('off-val').innerHTML = txt + ' <small>秒</small>';
+}
+function offAdd(d) {
+  offsetSec = Math.round((offsetSec + d) * 10) / 10;
   lastIdx = -1;
-});
-document.querySelectorAll('[data-d]').forEach(function (b) {
-  b.addEventListener('click', function () {
-    offsetSec = Math.round((offsetSec + parseFloat(b.getAttribute('data-d'))) * 10) / 10;
-    document.getElementById('offset').value = offsetSec;
-    lastIdx = -1;
-  });
-});
+  offShow();
+}
+document.getElementById('off-m01').addEventListener('click', function () { offAdd(-0.1); });
+document.getElementById('off-p01').addEventListener('click', function () { offAdd(0.1); });
+function offHold(id, d) {
+  var el = document.getElementById(id), t1 = null, t2 = null, n = 0;
+  function start(e) {
+    e.preventDefault(); offAdd(d); n = 0;
+    t1 = setTimeout(function () {
+      t2 = setInterval(function () { n++; offAdd(d * (n > 25 ? 10 : 1)); }, 70);
+    }, 450);
+  }
+  function stop() { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; }
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointercancel', stop);
+  el.addEventListener('pointerleave', stop);
+  el.addEventListener('click', function (e) { e.preventDefault(); });
+}
+offHold('off-minus', -1);
+offHold('off-plus', 1);
+document.getElementById('off-val').addEventListener('dblclick', function () { offsetSec = 0; lastIdx = -1; offShow(); });
+document.getElementById('offcounter').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+offShow();
 
 function findIdx(at) {
   var lo = 0, hi = records.length - 1, ans = -1;
