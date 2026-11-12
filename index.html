@@ -57,7 +57,8 @@
   body.editing .blk-sel { outline: 2px solid #38bdf8 !important; }
   .snaphint { outline: 2px solid #fbbf24 !important; outline-offset: 2px; }
   #editbar { display: none; }
-  body.editing #editbar { display: flex; position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: rgba(17,21,29,.96); border-top: 1px solid #26303f; padding: 8px 10px; margin: 0; gap: 6px; align-items: center; flex-wrap: wrap; }
+  body.editing #editbar { display: flex; position: static; background: #11151d; border: 1px solid #26303f; border-radius: 10px; padding: 8px 10px; margin: 8px 0 0; gap: 6px; align-items: center; flex-wrap: wrap; }
+  body.editing #editbar.instage { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: rgba(17,21,29,.96); border: none; border-top: 1px solid #26303f; border-radius: 0; margin: 0; }
   body.editing #editbar .lab { font-size: 12px; color: #94a3b8; }
   select { background: #171c26; border: 1px solid #2c3547; color: #e8ecf1; border-radius: 8px; padding: 8px; font-size: 14px; }
   input[type="range"] { accent-color: #2563eb; height: 28px; }
@@ -79,7 +80,7 @@
 </head>
 <body>
 <h1>360°動画 × FITデータ プレイヤー</h1>
-<div class="buildtag">build 20261112-13</div>
+<div class="buildtag">build 20261112-14</div>
 
 <div class="row">
   <input type="text" id="yturl" placeholder="YouTubeのURL（または動画ID）を貼り付け" value="https://youtu.be/smwZzaFzRQs">
@@ -112,6 +113,8 @@
     <button class="vcbtn" id="vczout" title="ズームアウト"><svg viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></button>
   </div>
   <div id="editshield"></div>
+</div>
+<div id="editbarslot">
   <div id="editbar">
     <span class="lab">レイアウト編集中：ドラッグで移動、選んだ表示の大きさ変更</span>
     <button class="sub" id="szdown">− 小さく</button>
@@ -688,11 +691,22 @@ function movePadForMode() {
     document.getElementById('padslot').appendChild(pad);
   }
 }
+function moveEditbarForMode() {
+  var eb = document.getElementById('editbar');
+  if (fsMode) {
+    eb.classList.add('instage');
+    stageEl().appendChild(eb);
+  } else {
+    eb.classList.remove('instage');
+    document.getElementById('editbarslot').appendChild(eb);
+  }
+}
 document.addEventListener('fullscreenchange', function () {
   var nowFs = !!document.fullscreenElement;
   if (nowFs === fsMode) return;
   fsMode = nowFs;
   movePadForMode();
+  moveEditbarForMode();
   applyLayout();
   updateUnit();
   lastIdx = -1;
