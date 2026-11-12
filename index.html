@@ -92,6 +92,7 @@
   <button class="sub" id="playbtn">▶ 再生 / ⏸ 停止</button>
   <button class="sub" id="fsbtn">全画面</button>
   <button class="sub" id="panbtn">視点ドラッグ: OFF</button>
+  <button class="sub" id="editbtn">レイアウト編集</button>
   <button class="sub" id="zoomin">＋ ズーム</button>
   <button class="sub" id="zoomout">− ズーム</button>
   <button class="sub" id="panreset">正面に戻す</button>
@@ -123,7 +124,7 @@
 <div class="help">
   <b>使い方</b>：① YouTubeの360°動画URLを読み込む → ② 対応するFITファイルを選ぶ → ③ 再生。映像の中でドラッグ／スワイプすると視点が動き、データ表示は画面に固定されたまま連動します。<br>
   <b>同期の合わせ方</b>：動画の開始がライド開始とズレている場合、オフセットに「動画0秒の時点でFIT開始から何秒経っていたか」を入れます（例：走り始めて60秒後に録画開始した動画なら 60）。<br>
-  <b>レイアウト変更</b>：速度・MAP・各データ表示は1つずつ長押しすると編集モードになり、ドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
+  <b>レイアウト変更</b>：「レイアウト編集」ボタンを押す（または各表示を長押しする）と編集モードになり、速度・MAP・各データ表示を1つずつドラッグで移動、「＋大きく／−小さく」でサイズ変更できます。「完了」で保存され、次回も同じ配置で開きます（保存先はこの端末のブラウザ内）。<br>
   <b>表示項目</b>：「表示項目を設定」から、速度・距離・標高・スロープ・心拍・ケイデンス・パワー・経過時間・MAPを個別にON/OFFできます。読み込んだFITに無いデータの項目は自動で隠れ、パネルに「このFITにデータなし」と出ます。設定は保存されます。<br>
   <b>視点の動かし方</b>：スマホのブラウザ埋め込みではYouTube標準のドラッグ視点移動が効かないため、「視点ドラッグ: ON」にすると映像の上をドラッグして視点を動かせます（公式APIで視点を制御）。ONの間はYouTubeのシークバーが使えないので、シークしたい時はOFFに戻してください。対応機種では、OFFの状態でスマホ本体を傾けても視点が動きます。<br>
   <b>注意</b>：YouTube側で「埋め込み」が無効な動画は再生できません（YouTube Studioの動画設定で埋め込み許可が必要）。このページは動画もFITも外部送信しません（FITは端末内でのみ読み取ります）。
@@ -293,6 +294,36 @@ document.getElementById('fitfile').addEventListener('change', function (ev) {
         route.push(lastLatLon);
       }
       lastIdx = -1;
+      (function derive() {
+        var hasDist = records.some(function (r) { return r.dist != null; });
+        if (!hasDist) {
+          var acc = 0, prevPt = null;
+          records.forEach(function (r) {
+            if (r.lat != null && r.lon != null) {
+              if (prevPt) {
+                var la1 = prevPt.lat * Math.PI / 180, la2 = r.lat * Math.PI / 180;
+                var dla = la2 - la1, dlo = (r.lon - prevPt.lon) * Math.PI / 180;
+                var h = Math.sin(dla / 2) * Math.sin(dla / 2) + Math.cos(la1) * Math.cos(la2) * Math.sin(dlo / 2) * Math.sin(dlo / 2);
+                acc += 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+              }
+              prevPt = r;
+              r.dist = acc;
+            } else {
+              r.dist = prevPt ? acc : null;
+            }
+          });
+        }
+        var hasSpd = records.some(function (r) { return r.spd != null; });
+        if (!hasSpd) {
+          var j = 0;
+          records.forEach(function (r, i) {
+            while (j < i && records[j].t < r.t - 3) j++;
+            if (r.dist != null && records[j].dist != null && r.t > records[j].t) {
+              r.spd = (r.dist - records[j].dist) / (r.t - records[j].t);
+            }
+          });
+        }
+      })();
       (function computeGrade() {
         var j = 0, prev = 0;
         for (var i = 0; i < records.length; i++) {
@@ -589,56 +620,75 @@ function selectBlk(k) {
 }
 function enterEdit(k) {
   document.body.classList.add('editing');
-  selectBlk(k);
+  if (k) selectBlk(k);
+  var eb = document.getElementById('editbtn');
+  if (eb) eb.textContent = '編集中（タップで完了）';
   setStatus('レイアウト編集中：ドラッグで移動、下のボタンで大きさ変更。終わったら「完了」');
+}
+function exitEdit() {
+  document.body.classList.remove('editing');
+  saveLayout();
+  var eb = document.getElementById('editbtn');
+  if (eb) eb.textContent = 'レイアウト編集';
 }
 
 var drag = null, pressTimer = null;
 Object.keys(blocks).forEach(function (k) {
   var el = blocks[k];
+  el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   el.addEventListener('pointerdown', function (e) {
     var s = stageEl().getBoundingClientRect();
     var p = blkPos(el);
     drag = { key: k, pid: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: p.x, baseY: p.y, sw: s.width, sh: s.height, active: false };
     try { el.setPointerCapture(e.pointerId); } catch (err) {}
     if (document.body.classList.contains('editing')) {
+      e.preventDefault();
       selectBlk(k);
       drag.active = true;
     } else {
       pressTimer = setTimeout(function () {
         if (drag && drag.key === k) { enterEdit(k); drag.active = true; }
-      }, 550);
+      }, 450);
     }
   });
-  el.addEventListener('pointermove', function (e) {
-    if (!drag || drag.pid !== e.pointerId || drag.key !== k) return;
-    var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
-    if (!drag.active) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) { clearTimeout(pressTimer); }
-      return;
-    }
-    var nx = Math.max(0, Math.min(92, drag.baseX + dx / drag.sw * 100));
-    var ny = Math.max(0, Math.min(92, drag.baseY + dy / drag.sh * 100));
-    el.style.left = nx + '%';
-    el.style.top = ny + '%';
-    el.style.right = 'auto';
-    el.style.bottom = 'auto';
-  });
-  function endDrag(e) {
-    if (pressTimer) clearTimeout(pressTimer);
-    if (drag && drag.pid === e.pointerId) {
-      if (drag.active && document.body.classList.contains('editing')) saveLayout();
-      drag = null;
-    }
-  }
-  el.addEventListener('pointerup', endDrag);
-  el.addEventListener('pointercancel', endDrag);
 });
+document.addEventListener('pointermove', function (e) {
+  if (!drag || drag.pid !== e.pointerId) return;
+  var el = blocks[drag.key];
+  if (!el) return;
+  var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+  if (!drag.active) {
+    if (Math.abs(dx) > 14 || Math.abs(dy) > 14) { clearTimeout(pressTimer); }
+    return;
+  }
+  var nx = Math.max(0, Math.min(92, drag.baseX + dx / drag.sw * 100));
+  var ny = Math.max(0, Math.min(92, drag.baseY + dy / drag.sh * 100));
+  el.style.left = nx + '%';
+  el.style.top = ny + '%';
+  el.style.right = 'auto';
+  el.style.bottom = 'auto';
+});
+function endDragDoc(e) {
+  if (pressTimer) clearTimeout(pressTimer);
+  if (drag && drag.pid === e.pointerId) {
+    if (drag.active && document.body.classList.contains('editing')) saveLayout();
+    drag = null;
+  }
+}
+document.addEventListener('pointerup', endDragDoc);
+document.addEventListener('pointercancel', endDragDoc);
 
 document.getElementById('editdone').addEventListener('click', function () {
-  document.body.classList.remove('editing');
-  saveLayout();
+  exitEdit();
   setStatus('レイアウトを保存しました（この端末・ブラウザに保存されます）');
+});
+document.getElementById('editbtn').addEventListener('click', function () {
+  if (document.body.classList.contains('editing')) {
+    exitEdit();
+    setStatus('レイアウトを保存しました（この端末・ブラウザに保存されます）');
+  } else {
+    enterEdit(selKey || 'speed');
+  }
 });
 document.getElementById('szup').addEventListener('click', function () { scaleSel(0.1); });
 document.getElementById('szdown').addEventListener('click', function () { scaleSel(-0.1); });
