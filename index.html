@@ -27,12 +27,12 @@
   #speedbox { position: absolute; top: 3%; left: 3%; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
   #speed { font-size: clamp(30px, 8vw, 56px); font-weight: 700; line-height: 1; }
   #speedbox .unit { font-size: clamp(11px, 2.6vw, 15px); color: #cbd5e1; }
-  #mapbox { position: absolute; top: 3%; right: 3%; width: 34%; max-width: 260px; aspect-ratio: 4/3; background: rgba(8,11,17,.55); border: 1px solid rgba(255,255,255,.25); border-radius: 8px; }
+  #mapbox { position: absolute; top: 3%; right: 3%; width: 32%; max-width: 260px; aspect-ratio: 4/3; background: rgba(8,11,17,.55); border: 1px solid rgba(255,255,255,.25); border-radius: 8px; }
   #map { width: 100%; height: 100%; display: block; }
-  #chips { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 4px; padding: 2.5% 3%; flex-wrap: wrap; }
-  .chip { background: rgba(8,11,17,.62); border: 1px solid rgba(255,255,255,.16); border-radius: 8px; padding: 4px 8px; min-width: 64px; }
-  .chip .lab { font-size: clamp(9px, 2.2vw, 11px); color: #9fb0c3; }
-  .chip .val { font-size: clamp(14px, 4vw, 21px); font-weight: 600; }
+  #chips { position: absolute; right: 3%; top: 48%; width: 32%; max-width: 260px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .chip { background: rgba(8,11,17,.62); border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 3px 6px; min-width: 0; }
+  .chip .lab { font-size: 9px; color: #9fb0c3; }
+  .chip .val { font-size: clamp(12px, 3.4vw, 16px); font-weight: 600; white-space: nowrap; }
   .chip .val small { font-size: .62em; color: #9fb0c3; font-weight: 400; }
   .ctl { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
   .ctl .lab { font-size: 12px; color: #94a3b8; }
@@ -65,6 +65,7 @@
     <div id="chips">
       <div class="chip"><div class="lab">距離</div><div class="val"><span id="c-dist">--</span> <small>km</small></div></div>
       <div class="chip"><div class="lab">標高</div><div class="val"><span id="c-alt">--</span> <small>m</small></div></div>
+      <div class="chip"><div class="lab">スロープ</div><div class="val"><span id="c-grade">--</span> <small>%</small></div></div>
       <div class="chip"><div class="lab">心拍</div><div class="val"><span id="c-hr">--</span> <small>bpm</small></div></div>
       <div class="chip"><div class="lab">ケイデンス</div><div class="val"><span id="c-cad">--</span> <small>rpm</small></div></div>
       <div class="chip"><div class="lab">パワー</div><div class="val"><span id="c-pow">--</span> <small>W</small></div></div>
@@ -264,6 +265,22 @@ document.getElementById('fitfile').addEventListener('change', function (ev) {
         route.push(lastLatLon);
       }
       lastIdx = -1;
+      (function computeGrade() {
+        var j = 0, prev = 0;
+        for (var i = 0; i < records.length; i++) {
+          var r = records[i];
+          while (j < i && r.dist != null && records[j].dist != null && (r.dist - records[j].dist > 30 || r.t - records[j].t > 20)) j++;
+          var g = null;
+          if (r.alt != null && records[j].alt != null && r.dist != null && records[j].dist != null) {
+            var dd = r.dist - records[j].dist;
+            if (dd >= 10) g = (r.alt - records[j].alt) / dd * 100;
+          }
+          if (g === null) g = prev;
+          g = Math.max(-40, Math.min(40, g));
+          prev = 0.65 * g + 0.35 * prev;
+          r.grade = prev;
+        }
+      })();
       var dur = records[records.length - 1].t;
       var distKm = '—';
       for (var j = records.length - 1; j >= 0; j--) { if (records[j].dist != null) { distKm = (records[j].dist / 1000).toFixed(2); break; } }
@@ -390,6 +407,7 @@ function sync() {
       document.getElementById('speed').textContent = r.speed != null ? (r.speed * 3.6).toFixed(1) : '--.-';
       document.getElementById('c-dist').textContent = r.dist != null ? (r.dist / 1000).toFixed(2) : '--';
       document.getElementById('c-alt').textContent = r.alt != null ? Math.round(r.alt) : '--';
+      document.getElementById('c-grade').textContent = r.grade != null ? r.grade.toFixed(1) : '--';
       document.getElementById('c-hr').textContent = r.hr != null ? r.hr : '--';
       document.getElementById('c-cad').textContent = r.cad != null ? r.cad : '--';
       document.getElementById('c-pow').textContent = r.pow != null ? r.pow : '--';
@@ -400,7 +418,7 @@ function sync() {
 }
 function clearHud() {
   document.getElementById('speed').textContent = '--.-';
-  ['c-dist','c-alt','c-hr','c-cad','c-pow'].forEach(function (id) { document.getElementById(id).textContent = '--'; });
+  ['c-dist','c-alt','c-grade','c-hr','c-cad','c-pow'].forEach(function (id) { document.getElementById(id).textContent = '--'; });
   document.getElementById('c-time').textContent = '--:--';
 }
 var panOn = false, yaw = 0, pitch = 0, fov = 100;
